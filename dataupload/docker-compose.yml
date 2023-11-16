@@ -34,7 +34,7 @@ services:
     networks:
       - picsure
     volumes:
-      - ./dataupload/data/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+      - /usr/local/pic-sure-services/dataupload/data/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
       - uploader-db-data:/var/lib/mysql
 volumes:
   uploader-db-data:

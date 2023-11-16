@@ -3,6 +3,7 @@ package edu.harvard.dbmi.avillach.dataupload.upload;
 import edu.harvard.dbmi.avillach.dataupload.aws.SelfRefreshingS3Client;
 import edu.harvard.dbmi.avillach.dataupload.hpds.HPDSClient;
 import edu.harvard.dbmi.avillach.dataupload.hpds.Query;
+import edu.harvard.dbmi.avillach.dataupload.status.QueryStatus;
 import edu.harvard.dbmi.avillach.dataupload.status.UploadStatus;
 import edu.harvard.dbmi.avillach.dataupload.status.UploadStatusService;
 import org.slf4j.Logger;
@@ -19,6 +20,8 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.function.BiConsumer;
 
 @ConditionalOnProperty(name = "production", havingValue = "true")
@@ -48,9 +51,13 @@ public class DataUploadService {
     @Autowired
     private Path sharingRoot;
 
-    public void upload(Query query, String site) {
+    public QueryStatus upload(Query query, String site) {
         Thread.ofVirtual().start(() -> uploadData(query, DataType.Phenotypic, site));
         Thread.ofVirtual().start(() -> uploadData(query, DataType.Genomic, site));
+        return new QueryStatus(
+            UploadStatus.InProgress, UploadStatus.InProgress, query.getId(),
+            LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE), site
+        );
     }
     
     private enum DataType {Genomic("genomic_data.tsv"), Phenotypic("phenotypic_data.tsv");
@@ -61,14 +68,18 @@ public class DataUploadService {
         }
     }
 
+    private interface StatusSetter {
+        void set(Query q, UploadStatus us, String site);
+    }
+
     private void uploadData(Query query, DataType dataType, String site) {
         LOG.info("Starting upload {} process for uuid: {}", dataType, query.getId());
-        BiConsumer<Query, UploadStatus> statusSetter = 
+        StatusSetter statusSetter =
             dataType == DataType.Genomic ? statusService::setGenomicStatus : statusService::setPhenotypicStatus;
 
         boolean success = dataType == DataType.Genomic ? hpds.writeGenomicData(query) : hpds.writePhenotypicData(query);
         if (!success) {
-            statusSetter.accept(query, UploadStatus.Error);
+            statusSetter.set(query, UploadStatus.Error, site);
             LOG.info("HPDS failed to write {} data. Status for {} set to error.", dataType, query.getId());
             return;
         }
@@ -76,7 +87,7 @@ public class DataUploadService {
 
         Path data = Path.of(sharingRoot.toString(), query.getId().toString(), dataType.fileName);
         if (!Files.exists(data)) {
-            statusSetter.accept(query, UploadStatus.Error);
+            statusSetter.set(query, UploadStatus.Error, site);
             LOG.info("HPDS lied; file {} DNE. Status set to error", data);
             return;
         }
@@ -84,10 +95,10 @@ public class DataUploadService {
         LOG.info("File location verified. Uploading for {} to AWS", query.getId());
         success = uploadFileFromPath(data, site);
         if (success) {
-            statusSetter.accept(query, UploadStatus.Complete);
+            statusSetter.set(query, UploadStatus.Complete, site);
             LOG.info("{} data for {} uploaded!", dataType, query.getId());
         } else {
-            statusSetter.accept(query, UploadStatus.Error);
+            statusSetter.set(query, UploadStatus.Error, site);
         }
     }
 

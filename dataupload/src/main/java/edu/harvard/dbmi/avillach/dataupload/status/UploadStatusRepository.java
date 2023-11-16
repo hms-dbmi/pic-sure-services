@@ -13,49 +13,36 @@ public class UploadStatusRepository {
     private JdbcTemplate template;
 
     @Autowired
-    private UploadStatusRowMapper mapper;
+    private QueryStatusRowMapper mapper;
 
-    public Optional<UploadStatus> getGenomicStatus(String queryId) {
+    public Optional<QueryStatus> getStatuses(String queryId) {
         try {
             return Optional.ofNullable(template.queryForObject(
-                "SELECT genomic_status AS status FROM query_status WHERE query = unhex(?)",
-                mapper,
-                queryId.replace("-", "")
+                "SELECT GENOMIC_STATUS, PHENOTYPIC_STATUS, QUERY, DATE_STARTED, SITE FROM query_status WHERE query = ?",
+                mapper, queryId
             ));
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
     }
 
-    public Optional<UploadStatus> getPhenotypicStatus(String queryId) {
-        try {
-            return Optional.ofNullable(template.queryForObject(
-                "SELECT phenotypic_status AS status FROM query_status WHERE query = unhex(?)",
-                mapper,
-                queryId.replace("-", "")
-            ));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
-    }
-
-    public void setGenomicStatus(String queryId, UploadStatus status) {
+    public void setGenomicStatus(String queryId, UploadStatus status, String site) {
         String sql = """
             INSERT INTO query_status
-                (query, genomic_status)
-                VALUES (unhex(?), ?)
+                (QUERY, GENOMIC_STATUS, SITE, DATE_STARTED)
+                VALUES (?, ?, ?, now())
                 ON DUPLICATE KEY UPDATE genomic_status=?
         """;
-        template.update(sql, queryId.replace("-", ""), status.toString(), status.toString());
+        template.update(sql, queryId, status.toString(), site, status.toString());
     }
 
-    public void setPhenotypicStatus(String queryId, UploadStatus status) {
+    public void setPhenotypicStatus(String queryId, UploadStatus status, String site) {
         String sql = """
             INSERT INTO query_status
-                (query, phenotypic_status)
-                VALUES (unhex(?), ?)
+                (QUERY, PHENOTYPIC_STATUS, SITE, DATE_STARTED)
+                VALUES (?, ?, ?, now())
                 ON DUPLICATE KEY UPDATE phenotypic_status=?
         """;
-        template.update(sql, queryId.replace("-", ""), status.toString(), status.toString());
+        template.update(sql, queryId, status.toString(), site, status.toString());
     }
 }

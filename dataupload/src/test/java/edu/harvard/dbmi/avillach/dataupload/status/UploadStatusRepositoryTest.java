@@ -38,9 +38,9 @@ class UploadStatusRepositoryTest {
     @Test
     void shouldGetGenomicStatus() {
         Query query = new Query();
-        query.setId(UUID.fromString("33613336-3934-3761-2d38-3233312d3131").toString());
+        query.setId("33613336-3934-3761-2d38-3233312d3131");
 
-        Optional<UploadStatus> actual = subject.getGenomicStatus(query.getId());
+        Optional<UploadStatus> actual = subject.getStatuses(query.getId()).map(QueryStatus::genomic);
         Optional<UploadStatus> expected = Optional.of(UploadStatus.Complete);
 
         Assertions.assertEquals(expected, actual);
@@ -49,9 +49,9 @@ class UploadStatusRepositoryTest {
     @Test
     void shouldGetPhenotypicStatus() {
         Query query = new Query();
-        query.setId(UUID.fromString("33613336-3934-3761-2d38-3233312d3131").toString());
+        query.setId("33613336-3934-3761-2d38-3233312d3131");
 
-        Optional<UploadStatus> actual = subject.getPhenotypicStatus(query.getId());
+        Optional<UploadStatus> actual = subject.getStatuses(query.getId()).map(QueryStatus::phenotypic);
         Optional<UploadStatus> expected = Optional.of(UploadStatus.Error);
 
         Assertions.assertEquals(expected, actual);
@@ -60,10 +60,10 @@ class UploadStatusRepositoryTest {
     @Test
     void shouldSetGenomicStatus() {
         Query query = new Query();
-        query.setId(UUID.fromString("33613336-3934-3761-2d38-3233312d3131").toString());
+        query.setId("33613336-3934-3761-2d38-3233312d3131");
 
-        subject.setGenomicStatus(query.getId(), UploadStatus.InProgress);
-        Optional<UploadStatus> actual = subject.getGenomicStatus(query.getId());
+        subject.setGenomicStatus(query.getId(), UploadStatus.InProgress, "bch");
+        Optional<UploadStatus> actual = subject.getStatuses(query.getId()).map(QueryStatus::genomic);
         Optional<UploadStatus> expected = Optional.of(UploadStatus.InProgress);
 
         Assertions.assertEquals(expected, actual);
@@ -72,10 +72,10 @@ class UploadStatusRepositoryTest {
     @Test
     void shouldSetPhenotypicStatus() {
         Query query = new Query();
-        query.setId(UUID.fromString("33613336-3934-3761-2d38-3233312d3131").toString());
+        query.setId("33613336-3934-3761-2d38-3233312d3131");
 
-        subject.setPhenotypicStatus(query.getId(), UploadStatus.NotStarted);
-        Optional<UploadStatus> actual = subject.getPhenotypicStatus(query.getId());
+        subject.setPhenotypicStatus(query.getId(), UploadStatus.NotStarted, "bch");
+        Optional<UploadStatus> actual = subject.getStatuses(query.getId()).map(QueryStatus::phenotypic);
         Optional<UploadStatus> expected = Optional.of(UploadStatus.NotStarted);
 
         Assertions.assertEquals(expected, actual);
@@ -86,9 +86,9 @@ class UploadStatusRepositoryTest {
         Query query = new Query();
         query.setId(UUID.randomUUID().toString());
 
-        subject.setGenomicStatus(query.getId(), UploadStatus.InProgress);
+        subject.setGenomicStatus(query.getId(), UploadStatus.InProgress, "bch");
 
-        Optional<UploadStatus> actual = subject.getPhenotypicStatus(query.getId());
+        Optional<UploadStatus> actual = subject.getStatuses(query.getId()).map(QueryStatus::phenotypic);
         Optional<UploadStatus> expected = Optional.of(UploadStatus.NotStarted);
         Assertions.assertEquals(expected, actual);
     }

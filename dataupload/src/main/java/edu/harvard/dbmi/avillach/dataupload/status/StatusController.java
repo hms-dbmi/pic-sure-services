@@ -21,7 +21,7 @@ public class StatusController {
     }
 
     @GetMapping("/status/{queryId}")
-    public ResponseEntity<DataUploadStatuses> getUploadStatus(@PathVariable("queryId") String queryId) {
+    public ResponseEntity<QueryStatus> getUploadStatus(@PathVariable("queryId") String queryId) {
         return uploadStatusService.getStatus(queryId)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());

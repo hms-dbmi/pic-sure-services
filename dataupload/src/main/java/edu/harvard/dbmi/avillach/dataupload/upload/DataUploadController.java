@@ -1,8 +1,7 @@
 package edu.harvard.dbmi.avillach.dataupload.upload;
 
 import edu.harvard.dbmi.avillach.dataupload.hpds.Query;
-import edu.harvard.dbmi.avillach.dataupload.status.DataUploadStatuses;
-import edu.harvard.dbmi.avillach.dataupload.status.UploadStatus;
+import edu.harvard.dbmi.avillach.dataupload.status.QueryStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +18,7 @@ public class DataUploadController {
     DataUploadService uploadService;
 
     @PostMapping("/upload/{site}")
-    public ResponseEntity<DataUploadStatuses> startUpload(@RequestBody Query query, @PathVariable String site) {
-        uploadService.upload(query, site);
-        return ResponseEntity.ok(
-            new DataUploadStatuses(UploadStatus.InProgress, UploadStatus.InProgress, query.getId())
-        );
+    public ResponseEntity<QueryStatus> startUpload(@RequestBody Query query, @PathVariable String site) {
+        return ResponseEntity.ok(uploadService.upload(query, site));
     }
 }
