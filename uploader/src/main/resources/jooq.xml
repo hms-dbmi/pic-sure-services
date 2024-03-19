@@ -1,0 +1,46 @@
+<configuration>
+    <!-- Configure the database connection here -->
+    <jdbc>
+        <driver>com.mysql.jdbc.Driver</driver>
+        <url>jdbc:mysql://localhost:3306/uploader</url>
+        <user>root</user>
+        <password>foo</password>
+
+        <!-- You can also pass user/password and other JDBC properties in the optional properties tag: -->
+        <properties>
+            <property><key>user</key><value>root</value></property>
+            <property><key>password</key><value>foo</value></property>
+        </properties>
+    </jdbc>
+
+    <generator>
+        <database>
+            <name>org.jooq.meta.mysql.MySQLDatabase</name>
+            <includes>.*</includes>
+            <excludes>
+                UNUSED_TABLE                # This table (unqualified name) should not be generated
+                | PREFIX_.*                   # Objects with a given prefix should not be generated
+                | SECRET_SCHEMA\.SECRET_TABLE # This table (qualified name) should not be generated
+                | SECRET_ROUTINE              # This routine (unqualified name) ...
+            </excludes>
+
+            <!-- The schema that is used locally as a source for meta information.
+                 This could be your development schema or the production schema, etc
+                 This cannot be combined with the schemata element.
+
+                 If left empty, jOOQ will generate all available schemata. See the
+                 manual's next section to learn how to generate several schemata -->
+            <inputSchema>uploader</inputSchema>
+        </database>
+
+        <!-- Generation flags: See advanced configuration properties -->
+        <generate/>
+
+        <target>
+            <packageName>edu.harvard.dbmi.avillach.dataupload.generated</packageName>
+
+            <!-- The destination directory of your generated classes -->
+            <directory>src/main/java/edu/harvard/dbmi/avillach/dataupload/codegen/generated</directory>
+        </target>
+    </generator>
+</configuration>

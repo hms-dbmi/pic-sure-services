@@ -1,11 +1,20 @@
 package edu.harvard.dbmi.avillach.dataupload.status;
 
+import edu.harvard.dbmi.avillach.dataupload.codegen.generated.Tables;
+import edu.harvard.dbmi.avillach.dataupload.codegen.generated.tables.QueryStatus;
+import edu.harvard.dbmi.avillach.dataupload.codegen.generated.tables.records.QueryStatusRecord;
+import org.jooq.DSLContext;
+import org.jooq.SQL;
+import org.jooq.Table;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
 
 @Repository
 public class StatusRepository {
@@ -13,59 +22,68 @@ public class StatusRepository {
     private JdbcTemplate template;
 
     @Autowired
-    private DataUploadStatusesMapper statusesMapper;
+    private DataUploadStatusMapper mapper;
+
+    @Autowired
+    DSLContext dslContext;
 
     public Optional<DataUploadStatuses> getQueryStatus(String queryId) {
-        String sql = """
-                SELECT
-                    GENOMIC_STATUS, PHENOTYPIC_STATUS, hex(QUERY) as QUERY, APPROVED, SITE
-                FROM
-                    query_status
-                WHERE
-                    QUERY = unhex(?)
-                """;
-        return template.query(sql, statusesMapper, queryId.replace("-", ""))
-                .stream()
-                .findFirst();
+        UUID uuid = UUID.fromString(queryId);
+        QueryStatusRecord record = dslContext
+            .selectFrom(Tables.QUERY_STATUS)
+            .where(QueryStatus.QUERY_STATUS.QUERY.eq(asBytes(uuid)))
+            .fetchOne();
+        return Optional.ofNullable(record).map(r -> mapper.map(r, queryId));
     }
 
     public void setGenomicStatus(String queryId, UploadStatus status) {
-        String sql = """
-            INSERT INTO query_status
-                (query, genomic_status)
-                VALUES (unhex(?), ?)
-                ON DUPLICATE KEY UPDATE genomic_status=?
-        """;
-        template.update(sql, queryId.replace("-", ""), status.toString(), status.toString());
+        UUID uuid = UUID.fromString(queryId);
+        dslContext
+            .insertInto(Tables.QUERY_STATUS)
+            .columns(QueryStatus.QUERY_STATUS.QUERY, QueryStatus.QUERY_STATUS.GENOMIC_STATUS)
+            .values(asBytes(uuid), status.name())
+            .onDuplicateKeyUpdate()
+            .set(QueryStatus.QUERY_STATUS.GENOMIC_STATUS, status.name())
+            .execute();
     }
 
     public void setPhenotypicStatus(String queryId, UploadStatus status) {
-        String sql = """
-            INSERT INTO query_status
-                (query, phenotypic_status)
-                VALUES (unhex(?), ?)
-                ON DUPLICATE KEY UPDATE phenotypic_status=?
-        """;
-        template.update(sql, queryId.replace("-", ""), status.toString(), status.toString());
+        UUID uuid = UUID.fromString(queryId);
+        dslContext
+            .insertInto(Tables.QUERY_STATUS)
+            .columns(QueryStatus.QUERY_STATUS.QUERY, QueryStatus.QUERY_STATUS.PHENOTYPIC_STATUS)
+            .values(asBytes(uuid), status.name())
+            .onDuplicateKeyUpdate()
+            .set(QueryStatus.QUERY_STATUS.PHENOTYPIC_STATUS, status.name())
+            .execute();
     }
 
     public void setApproved(String queryId, LocalDate approvalDate) {
-        String sql = """
-            INSERT INTO query_status
-                (QUERY, APPROVED)
-                VALUES (unhex(?), ?)
-                ON DUPLICATE KEY UPDATE APPROVED=?
-        """;
-        template.update(sql, queryId.replace("-", ""), approvalDate, approvalDate);
+        UUID uuid = UUID.fromString(queryId);
+        dslContext
+            .insertInto(Tables.QUERY_STATUS)
+            .columns(QueryStatus.QUERY_STATUS.QUERY, QueryStatus.QUERY_STATUS.APPROVED)
+            .values(asBytes(uuid), approvalDate.atStartOfDay())
+            .onDuplicateKeyUpdate()
+            .set(QueryStatus.QUERY_STATUS.APPROVED, approvalDate.atStartOfDay())
+            .execute();
     }
 
     public void setSite(String picSureId, String site) {
-        String sql = """
-            INSERT INTO query_status
-                (QUERY, SITE)
-                VALUES (unhex(?), ?)
-                ON DUPLICATE KEY UPDATE SITE=?
-        """;
-        template.update(sql, picSureId.replace("-", ""), site, site);
+        UUID uuid = UUID.fromString(picSureId);
+        dslContext
+            .insertInto(Tables.QUERY_STATUS)
+            .columns(QueryStatus.QUERY_STATUS.QUERY, QueryStatus.QUERY_STATUS.SITE)
+            .values(asBytes(uuid), site)
+            .onDuplicateKeyUpdate()
+            .set(QueryStatus.QUERY_STATUS.SITE, site)
+            .execute();
+    }
+
+    public static byte[] asBytes(UUID uuid) {
+        ByteBuffer bb = ByteBuffer.allocate(16);
+        bb.putLong(uuid.getMostSignificantBits());
+        bb.putLong(uuid.getLeastSignificantBits());
+        return bb.array();
     }
 }
