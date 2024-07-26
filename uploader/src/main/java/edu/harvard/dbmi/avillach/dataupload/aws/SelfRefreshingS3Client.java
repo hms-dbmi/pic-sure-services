@@ -130,6 +130,7 @@ public class SelfRefreshingS3Client {
 
     public S3Client getS3Client(String siteName) {
         S3Client client;
+        LOG.info("Getting client for {}.", siteName);
         locks.get(siteName).readLock().lock();
         client = clients.get(siteName);
         locks.get(siteName).readLock().unlock();

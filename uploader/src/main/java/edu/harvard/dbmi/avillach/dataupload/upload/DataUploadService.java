@@ -67,7 +67,7 @@ public class DataUploadService {
     }
 
     protected void uploadData(Query query, DataType dataType, String site) {
-        LOG.info("Requesting lock for  {} / {}", dataType, query.getPicSureId());
+        LOG.info("Requesting lock for  {} / {} to upload to {}", dataType, query.getPicSureId(), site);
         try {
             uploadLock.acquire();
         } catch (InterruptedException e) {
