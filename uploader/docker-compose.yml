@@ -42,3 +42,8 @@ services:
 volumes:
   uploader-db-data:
 
+networks:
+  picsure:
+    external: true
+  hpdsNet:
+    external: true
