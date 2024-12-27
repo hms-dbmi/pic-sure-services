@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -119,7 +120,7 @@ public class DataUploadService {
 
     private boolean uploadFileFromPath(Path p, SiteAWSInfo site, String dir) {
         try {
-            RequestBody body = RequestBody.fromFile(p.toFile());
+            AsyncRequestBody body = AsyncRequestBody.fromFile(p.toFile());
             PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(site.bucket())
                 .serverSideEncryption(ServerSideEncryption.AWS_KMS)

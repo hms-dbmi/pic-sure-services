@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
@@ -25,15 +28,15 @@ public class AWSClientBuilder {
 
     private final Map<String, SiteAWSInfo> sites;
     private final StsClientProvider stsClientProvider;
-    private final S3ClientBuilder s3ClientBuilder;
-    private final SdkHttpClient sdkHttpClient;
+    private final S3AsyncClientBuilder s3ClientBuilder;
+    private final SdkAsyncHttpClient sdkHttpClient;
 
     @Autowired
     public AWSClientBuilder(
         Map<String, SiteAWSInfo> sites,
         StsClientProvider stsClientProvider,
-        S3ClientBuilder s3ClientBuilder,
-        @Autowired(required = false) SdkHttpClient sdkHttpClient
+        S3AsyncClientBuilder s3ClientBuilder,
+        @Autowired(required = false) SdkAsyncHttpClient sdkHttpClient
     ) {
         this.sites = sites;
         this.stsClientProvider = stsClientProvider;
@@ -41,7 +44,7 @@ public class AWSClientBuilder {
         this.sdkHttpClient = sdkHttpClient;
     }
 
-    public Optional<S3Client> buildClientForSite(String siteName) {
+    public Optional<S3AsyncClient> buildClientForSite(String siteName) {
         log.info("Building client for site {}", siteName);
         if (!sites.containsKey(siteName)) {
             log.warn("Could not find site {}", siteName);
@@ -78,7 +81,7 @@ public class AWSClientBuilder {
         return Optional.of(buildFromProvider(provider));
     }
 
-    private S3Client buildFromProvider(StaticCredentialsProvider provider) {
+    private S3AsyncClient buildFromProvider(StaticCredentialsProvider provider) {
         if (sdkHttpClient == null) {
             return s3ClientBuilder.credentialsProvider(provider).build();
         }

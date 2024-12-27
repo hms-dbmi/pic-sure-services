@@ -14,9 +14,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
-import software.amazon.awssdk.http.SdkHttpClient;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.http.nio.netty.ProxyConfiguration;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 
 @Configuration
 public class HttpClientConfig {
@@ -45,17 +45,17 @@ public class HttpClientConfig {
 
 
     @Bean
-    public SdkHttpClient getSdkClient() {
+    public SdkAsyncHttpClient getSdkClient() {
         if (!StringUtils.hasLength(proxyUser)) {
             return null;
         }
         LOG.info("Found proxy user {}, will configure sdk proxy", proxyUser);
-        ProxyConfiguration proxy = ProxyConfiguration.builder()
+        var proxy = ProxyConfiguration.builder()
             .useSystemPropertyValues(true)
             .username(proxyUser)
             .password(proxyPassword)
             .build();
-        return ApacheHttpClient.builder()
+        return NettyNioAsyncHttpClient.builder()
             .proxyConfiguration(proxy)
             .build();
     }

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.model.*;
 
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @ConditionalOnProperty(name = "production", havingValue = "true")
 @Component
@@ -59,7 +61,6 @@ public class S3StateVerifier {
         DeleteObjectRequest request = DeleteObjectRequest.builder().bucket(info.bucket()).key(s).build();
         return clientBuilder.buildClientForSite(info.siteName())
             .map(c -> c.deleteObject(request))
-            .map(DeleteObjectResponse::deleteMarker)
             .map((ignored) -> s);
     }
 
@@ -74,7 +75,8 @@ public class S3StateVerifier {
 
     private Optional<String> uploadFileFromPath(Path p, SiteAWSInfo info) {
         LOG.info("Verifying upload capabilities");
-        RequestBody body = RequestBody.fromFile(p.toFile());
+        AsyncRequestBody body = AsyncRequestBody.fromFile(p.toFile());
+
         PutObjectRequest request = PutObjectRequest.builder()
             .bucket(info.bucket())
             .serverSideEncryption(ServerSideEncryption.AWS_KMS)

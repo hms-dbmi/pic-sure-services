@@ -16,7 +16,9 @@ import org.mockito.Spy;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.util.ReflectionTestUtils;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -26,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 
 @SpringBootTest
@@ -44,7 +47,7 @@ class DataUploadServiceTest {
     private Path sharingRoot;
 
     @Mock
-    S3Client s3Client;
+    S3AsyncClient s3Client;
 
     @Mock
     AWSClientBuilder s3;
@@ -102,14 +105,14 @@ class DataUploadServiceTest {
         Mockito.when(sharingRoot.toString()).thenReturn(tempDir.toString());
         Mockito.when(hpds.writePhenotypicData(q)).thenReturn(true);
         Mockito.when(s3.buildClientForSite("bch")).thenReturn(Optional.of(s3Client));
-        Mockito.when(s3Client.putObject(Mockito.any(PutObjectRequest.class), Mockito.any(RequestBody.class)))
+        Mockito.when(s3Client.putObject(Mockito.any(PutObjectRequest.class), Mockito.any(AsyncRequestBody.class)))
                 .thenThrow(AwsServiceException.builder().build());
 
         subject.uploadData(q, DataType.Phenotypic, "bch");
 
         Mockito.verify(statusService, Mockito.times(1)).setPhenotypicStatus(q, UploadStatus.Querying);
         Mockito.verify(statusService, Mockito.times(1)).setPhenotypicStatus(q, UploadStatus.Uploading);
-        Mockito.verify(s3Client, Mockito.times(1)).putObject(Mockito.any(PutObjectRequest.class), Mockito.any(RequestBody.class));
+        Mockito.verify(s3Client, Mockito.times(1)).putObject(Mockito.any(PutObjectRequest.class), Mockito.any(AsyncRequestBody.class));
         Mockito.verify(statusService, Mockito.times(1)).setPhenotypicStatus(q, UploadStatus.Error);
         Mockito.verify(uploadLock, Mockito.times(1)).acquire();
         Mockito.verify(uploadLock, Mockito.times(1)).release();
@@ -129,14 +132,14 @@ class DataUploadServiceTest {
         Mockito.when(sharingRoot.toString()).thenReturn(tempDir.toString());
         Mockito.when(hpds.writePhenotypicData(q)).thenReturn(true);
         Mockito.when(s3.buildClientForSite("bch")).thenReturn(Optional.of(s3Client));
-        Mockito.when(s3Client.putObject(Mockito.any(PutObjectRequest.class), Mockito.any(RequestBody.class)))
-            .thenReturn(Mockito.mock(PutObjectResponse.class));
+        Mockito.when(s3Client.putObject(Mockito.any(PutObjectRequest.class), Mockito.any(AsyncRequestBody.class)))
+            .thenReturn(CompletableFuture.completedFuture(Mockito.mock(PutObjectResponse.class)));
 
         subject.uploadData(q, DataType.Phenotypic, "bch");
 
         Mockito.verify(statusService, Mockito.times(1)).setPhenotypicStatus(q, UploadStatus.Querying);
         Mockito.verify(statusService, Mockito.times(1)).setPhenotypicStatus(q, UploadStatus.Uploading);
-        Mockito.verify(s3Client, Mockito.times(1)).putObject(Mockito.any(PutObjectRequest.class), Mockito.any(RequestBody.class));
+        Mockito.verify(s3Client, Mockito.times(1)).putObject(Mockito.any(PutObjectRequest.class), Mockito.any(AsyncRequestBody.class));
         Mockito.verify(statusService, Mockito.times(1)).setPhenotypicStatus(q, UploadStatus.Uploaded);
         Assertions.assertFalse(Files.exists(fileToUpload));
         Mockito.verify(uploadLock, Mockito.times(1)).acquire();

@@ -13,8 +13,8 @@ import org.springframework.test.context.ActiveProfiles;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
@@ -38,7 +38,7 @@ class AWSClientBuilderTest {
     StsClientProvider stsClientProvider;
 
     @MockBean
-    S3ClientBuilder s3ClientBuilder;
+    S3AsyncClientBuilder S3AsyncClientBuilder;
 
     @Autowired
     AWSClientBuilder subject;
@@ -48,8 +48,8 @@ class AWSClientBuilderTest {
         Mockito.when(sites.get("Narnia"))
             .thenReturn(null);
 
-        Optional<S3Client> actual = subject.buildClientForSite("Narnia");
-        Optional<S3Client> expected = Optional.empty();
+        Optional<S3AsyncClient> actual = subject.buildClientForSite("Narnia");
+        Optional<S3AsyncClient> expected = Optional.empty();
 
         Assertions.assertEquals(expected, actual);
     }
@@ -72,8 +72,8 @@ class AWSClientBuilderTest {
         Mockito.when(stsClientProvider.createClient())
             .thenReturn(Optional.of(stsClient));
 
-        Optional<S3Client> actual = subject.buildClientForSite("bch");
-        Optional<S3Client> expected = Optional.empty();
+        Optional<S3AsyncClient> actual = subject.buildClientForSite("bch");
+        Optional<S3AsyncClient> expected = Optional.empty();
 
         Assertions.assertEquals(expected, actual);
     }
@@ -111,14 +111,14 @@ class AWSClientBuilderTest {
 
         StaticCredentialsProvider provider = StaticCredentialsProvider.create(sessionCredentials);
         ArgumentMatcher<AwsCredentialsProvider> credsMatcher = (AwsCredentialsProvider p) -> p.toString().equals(provider.toString());
-        S3Client s3Client = Mockito.mock(S3Client.class);
-        Mockito.when(s3ClientBuilder.credentialsProvider(Mockito.argThat(credsMatcher)))
-            .thenReturn(s3ClientBuilder);
-        Mockito.when(s3ClientBuilder.build())
-            .thenReturn(s3Client);
+        S3AsyncClient S3AsyncClient = Mockito.mock(S3AsyncClient.class);
+        Mockito.when(S3AsyncClientBuilder.credentialsProvider(Mockito.argThat(credsMatcher)))
+            .thenReturn(S3AsyncClientBuilder);
+        Mockito.when(S3AsyncClientBuilder.build())
+            .thenReturn(S3AsyncClient);
 
-        Optional<S3Client> actual = subject.buildClientForSite("bch");
-        Optional<S3Client> expected = Optional.of(s3Client);
+        Optional<S3AsyncClient> actual = subject.buildClientForSite("bch");
+        Optional<S3AsyncClient> expected = Optional.of(S3AsyncClient);
 
         Assertions.assertEquals(expected, actual);
     }
