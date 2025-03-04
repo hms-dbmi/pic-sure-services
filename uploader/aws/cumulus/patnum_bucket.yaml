@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template to create bucket for sharing GIC patient numbers with Cumulus, and the lambda to upload to the bucket
+
+Parameters:
+  EnvironmentType:
+    Type: String
+    Description: Dev, production, staging, etc
+    Default: dev
+
+Resources:
+  PatientBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::AccountId}-cumulus-gic-connector-${EnvironmentType}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # IAM Role for Lambda Function
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3PresignedURLPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::${PatientBucket}/*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  PresignedURLFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GeneratePresignedURL
+      Handler: index.handler
+      Runtime: python3.12
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import uuid
+          import logging
+          import os
+
+          import boto3
+          from botocore.exceptions import NoCredentialsError
+
+          site_name = 'bch'
+          valid_file_names = ['patients.txt', site_name + '_genotypic_data.tsv']
+          logger = logging.getLogger()
+          logger.setLevel('INFO')
+
+          def handler(event, context):
+            permitted_bucket = os.environ['BUCKET_NAME']
+            logging.info('Found permitted bucket name: %s', permitted_bucket)
+            bucket_name = event.get('bucket_name')
+            object_key = event.get('object_key')
+
+            if not bucket_name or not object_key:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'bucket_name and object_key are required'})
+                }
+            
+            if bucket_name != permitted_bucket:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'we cant upload to that bucket either'})
+                }
+
+            if not _validate_bucket_key(object_key):
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'object key must be a UUID directory followed by one of these files: {}'.format(valid_file_names)})
+                }
+            logging.info('Request to upload %s to %s is ok. Generating URL', object_key, bucket_name)
+            
+            s3_client = boto3.client('s3')
+            try:
+                presigned_url = s3_client.generate_presigned_url(
+                    ClientMethod='put_object',
+                    Params={
+                        'Bucket': bucket_name,
+                        'Key': object_key
+                    },
+                    ExpiresIn=3600  # URL expires in 1 hour (adjust as needed)
+                )
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({'presigned_url': presigned_url})
+                }
+            except NoCredentialsError:
+                return {
+                    'statusCode': 500,
+                    'body': json.dumps({'error': 'Credentials not available'})
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'body': json.dumps({'error': str(e)})
+                }
+          def _validate_bucket_key(full_path: str) -> bool:
+            dirs = full_path.split("/")
+            return len(dirs) == 2 and str(uuid.UUID(dirs[0])) == dirs[0] and dirs[1] in valid_file_names
+
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref PatientBucket
+
+  PresignedURLFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt PresignedURLFunction.Arn
+      AuthType: NONE
+
+Outputs:
+  BucketName:
+    Description: Name of the Cumulus data sharing bucket
+    Value: !Ref PatientBucket
+  LambdaFunctionName:
+    Description: Name of the Lambda function for creating upload URLs
+    Value: !Ref PresignedURLFunction
+  LambdaFunctionUrl:
+    Description: URL to invoke the Lambda function
+    Value: !GetAtt PresignedURLFunctionUrl.FunctionUrl

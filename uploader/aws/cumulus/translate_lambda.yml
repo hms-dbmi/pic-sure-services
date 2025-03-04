@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template to create a Lambda function using a Python script and a dependencies ZIP file from an S3 bucket.
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: Name of the pre-existing S3 bucket containing the Python script and dependencies ZIP file.
+
+  PythonScriptKey:
+    Type: String
+    Description: S3 object key for the Python script.
+
+  DependenciesZipKey:
+    Type: String
+    Description: S3 object key for the dependencies ZIP file.
+
+Resources:
+  # IAM Role for Lambda Function
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaBasicExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Lambda Function
+  MyLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: MyPythonLambda
+      Handler: index.handler
+      Runtime: python3.12
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Ref PythonScriptKey
+      Layers:
+        - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:${DependenciesLayer}'
+
+  # Lambda Layer for Dependencies
+  DependenciesLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: MyDependenciesLayer
+      Content:
+        S3Bucket: !Ref S3BucketName
+        S3Key: !Ref DependenciesZipKey
+      CompatibleRuntimes:
+        - python3.12
+
+Outputs:
+  LambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref MyLambdaFunction
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt MyLambdaFunction.Arn
+  DependenciesLayerArn:
+    Description: ARN of the Dependencies Layer
+    Value: !Ref DependenciesLayer
