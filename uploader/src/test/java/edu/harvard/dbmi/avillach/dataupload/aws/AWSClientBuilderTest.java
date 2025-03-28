@@ -6,10 +6,8 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
-import org.springframework.context.annotation.Profile;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -28,16 +26,16 @@ import java.util.Optional;
 @SpringBootTest
 class AWSClientBuilderTest {
 
-    @MockBean
+    @MockitoBean
     Map<String, SiteAWSInfo> sites;
 
-    @MockBean
+    @MockitoBean
     StsClient stsClient;
 
-    @MockBean
+    @MockitoBean
     StsClientProvider stsClientProvider;
 
-    @MockBean
+    @MockitoBean
     S3ClientBuilder s3ClientBuilder;
 
     @Autowired
